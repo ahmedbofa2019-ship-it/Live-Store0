@@ -1,41 +1,58 @@
-const { connectDB, Item } = require('./_db');
+import { MongoClient } from 'mongodb';
+import bcrypt from 'bcryptjs'; // مهم جداً عشان يقدر يقرا الباسورد المتشفر اللي في الداتا بيز
 
-module.exports = async (req, res) => {
-    // استقبال طلبات من نوع POST فقط
+const uri = process.env.MONGO_URI;
+
+export default async function handler(req, res) {
     if (req.method !== 'POST') {
-        return res.status(405).end();
+        return res.status(405).json({ message: 'Method not allowed' });
     }
 
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'الرجاء إدخال البريد الإلكتروني وكلمة المرور' });
+    }
+
+    let client;
+
     try {
-        // الاتصال بقاعدة البيانات
-        await connectDB();
+        client = new MongoClient(uri);
+        await client.connect();
+        
+        const database = client.db('LiveStore');
+        const usersCollection = database.collection('users');
 
-        // استقبال بيانات تسجيل الدخول من الفرونت أند
-        const { email, password } = req.body;
-
-        // البحث عن المستخدم بالإيميل والباسورد
-        // (ملاحظة: بما أننا نخزن البيانات في موديل Item، نبحث جواه)
-        const user = await Item.findOne({ email, password });
+        // البحث عن المستخدم بالإيميل (وتحويله لحروف صغيرة لضمان الدقة)
+        const user = await usersCollection.findOne({ email: email.toLowerCase().trim() });
 
         if (!user) {
-            // إذا لم يتم العثور على الحساب، نرسل خطأ
-            return res.status(401).json({ success: false, message: "البريد الإلكتروني أو كلمة المرور غير صحيحة" });
+            return res.status(401).json({ message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
         }
 
-        // إذا كانت البيانات صحيحة، نرسل رد بالنجاح مع بيانات الحساب والـ role
-        return res.status(200).json({ 
-            success: true, 
-            message: "تم تسجيل الدخول بنجاح",
+        // مقارنة الباسورد المكتوب بالباسورد المشفر القادم من الداتا بيز باستخدام bcrypt
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
+        }
+
+        // لو البيانات صحيحة
+        return res.status(200).json({
+            message: 'تم تسجيل الدخول بنجاح!',
             user: {
+                id: user._id,
                 email: user.email,
-                role: user.role,
-                name: user.name || ""
+                role: user.role || 'customer'
             }
         });
 
     } catch (error) {
-        console.error(error);
-        // إرسال رد بالفشل في حال حدوث أي خطأ في السيرفر
-        return res.status(500).json({ success: false, message: "حدث خطأ في السيرفر" });
+        console.error("Login Error:", error);
+        return res.status(500).json({ message: 'حدثت مشكلة في السيرفر أثناء تسجيل الدخول' });
+    } finally {
+        if (client) {
+            await client.close();
+        }
     }
-};
+}

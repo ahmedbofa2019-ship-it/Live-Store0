@@ -11,7 +11,6 @@
             background-color: #121212; 
             color: #d4af37 !important; 
         }
-        /* تعديل المساحة هنا */
         .login-container { 
             max-width: 600px; 
             width: 95%; 
@@ -22,20 +21,20 @@
             border: 1px solid #d4af37;
             border-radius: 12px;
             box-shadow: 0 0 20px rgba(212, 175, 55, 0.1) !important;
-            padding: 40px !important; /* زيادة الـ padding جوه الكارت عشان يوسع */
+            padding: 40px !important;
         }
         .text-gold, .form-label, h4, h2, p { color: #d4af37 !important; }
         .form-control {
             background-color: #262626;
             border: 1px solid #444;
             color: #d4af37 !important;
-            padding: 12px; /* كبرنا المربعات شوية للراحة */
+            padding: 12px;
         }
         .btn-gold {
             background-color: #d4af37;
             color: #121212;
             font-weight: bold;
-            padding: 12px; /* كبرنا الزرار */
+            padding: 12px;
             transition: all 0.2s;
         }
         .btn-gold:hover { background-color: #f3e5ab; transform: translateY(-2px); }
@@ -72,23 +71,34 @@
     <script>
         document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
+            
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
 
             try {
-                const res = await fetch('/api/login', {
+                // تم التعديل لـ /api/login بناءً على الـ routes المكتوبة في vercel.json
+                const res = await fetch('/api/login', { 
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
+
                 const data = await res.json();
-                if(data.success) {
+
+                if (res.ok) {
+                    alert(data.message); 
+                    
+                    // حفظ بيانات المستخدم في الـ LocalStorage
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // التوجيه لصفحة الـ Dashboard
                     window.location.href = 'dashboard.html';
                 } else {
-                    alert('بيانات الدخول غير صحيحة');
+                    alert(data.message || 'بيانات الدخول غير صحيحة');
                 }
             } catch (error) {
-                alert('حدث خطأ في الاتصال بالسيرفر');
+                console.error('Login Error:', error);
+                alert('حدث خطأ في الاتصال بالسيرفر، تأكد من جودة الإنترنت.');
             }
         };
     </script>
