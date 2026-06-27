@@ -1,5 +1,5 @@
 import { MongoClient } from 'mongodb';
-import bcrypt from 'bcryptjs'; // مهم جداً عشان يقدر يقرا الباسورد المتشفر اللي في الداتا بيز
+import bcrypt from 'bcrypt'; // استخدام المكتبة الأصلية المتوافقة مع الـ Schema عندك
 
 const uri = process.env.MONGO_URI;
 
@@ -20,17 +20,18 @@ export default async function handler(req, res) {
         client = new MongoClient(uri);
         await client.connect();
         
-        const database = client.db('LiveStore');
+        // تعديل اسم الداتا بيز واسم الكوليكشن بناءً على الصورة اللي بعتهالي
+        const database = client.db('test'); 
         const usersCollection = database.collection('users');
 
-        // البحث عن المستخدم بالإيميل (وتحويله لحروف صغيرة لضمان الدقة)
+        // البحث عن المستخدم بالإيميل
         const user = await usersCollection.findOne({ email: email.toLowerCase().trim() });
 
         if (!user) {
             return res.status(401).json({ message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
         }
 
-        // مقارنة الباسورد المكتوب بالباسورد المشفر القادم من الداتا بيز باستخدام bcrypt
+        // مقارنة الباسورد باستخدام مكتبة bcrypt الأصلية
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
