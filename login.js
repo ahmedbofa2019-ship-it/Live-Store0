@@ -2,36 +2,32 @@ const { connectDB, Item } = require('./_db');
 const bcrypt = require('bcryptjs');
 
 module.exports = async (req, res) => {
-    // استقبال طلبات من نوع POST فقط
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method not allowed' });
     }
 
     try {
-        // الاتصال بقاعدة البيانات باستخدام نفس دالة المشروع
         await connectDB();
-
         const { email, password } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ message: 'الرجاء إدخال البريد الإلكتروني وكلمة المرور' });
         }
 
-        // البحث عن المستخدم باستخدام الموديل المشترك Item لضمان نفس الكوليكشن
+        // البحث في نفس الموديل Item
         const user = await Item.findOne({ email: email.toLowerCase().trim() });
 
         if (!user) {
             return res.status(401).json({ message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
         }
 
-        // مقارنة الباسورد المكتوب بالباسورد المشفر في الداتا بيز
+        // مقارنة الباسورد المكتوب بالباسورد المشفر
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
             return res.status(401).json({ message: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
         }
 
-        // تسجيل دخول ناجح
         return res.status(200).json({
             message: 'تم تسجيل الدخول بنجاح!',
             user: {
