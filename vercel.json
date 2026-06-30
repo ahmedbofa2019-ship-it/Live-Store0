@@ -1,15 +1,17 @@
 {
   "version": 2,
   "builds": [
-    { "src": "register.js", "use": "@vercel/node" },
-    { "src": "login.js", "use": "@vercel/node" },
-    { "src": "item.js", "use": "@vercel/node" },
+    { "src": "api/register.js", "use": "@vercel/node" },
+    { "src": "api/login.js", "use": "@vercel/node" },
+    { "src": "api/item.js", "use": "@vercel/node" },
+    { "src": "api/forgot-password.js", "use": "@vercel/node" },
     { "src": "*.html", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/register", "dest": "register.js" },
-    { "src": "/api/login", "dest": "login.js" },
-    { "src": "/api/item", "dest": "item.js" },
+    { "src": "/api/register", "dest": "api/register.js" },
+    { "src": "/api/login", "dest": "api/login.js" },
+    { "src": "/api/item", "dest": "api/item.js" },
+    { "src": "/api/forgot-password", "dest": "api/forgot-password.js" },
     { "src": "/(.*)", "dest": "/$1" }
   ]
 }
