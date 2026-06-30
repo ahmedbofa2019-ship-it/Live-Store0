@@ -1,4 +1,5 @@
 const { connectDB, Item } = require('./_db');
+const nodemailer = require('nodemailer');
 
 module.exports = async (req, res) => {
     // التأكد أن الطلب POST فقط
@@ -7,7 +8,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // الاتصال بقاعدة البيانات باستخدام الدالة المشتركة من _db
+        // الاتصال بقاعدة البيانات
         await connectDB();
         const { email } = req.body;
 
@@ -15,16 +16,49 @@ module.exports = async (req, res) => {
             return res.status(400).json({ success: false, message: 'البريد الإلكتروني مطلوب' });
         }
 
-        // البحث في موديل Item الموحد اللي شغال بيه المشروع
+        // البحث في موديل Item الموحد الشغال بيه المشروع
         const user = await Item.findOne({ email: email.toLowerCase().trim() });
 
         // للأمان وحماية الخصوصية: نرجع دايماً نجاح عشان نمنع الـ User Enumeration
         if (!user) {
-            return res.status(200).json({ success: true, message: 'إذا كان الحساب موجوداً، فسيتم إرسال الرابط.' });
+            return res.status(200).json({ success: true, message: 'إذا كان الحساب موجوداً، فسيتم إرسال رمز الاستعادة.' });
         }
 
-        // [منطق إرسال الإيميل الفعلي مستقبلاً بـ NodeMailer ينزل هنا]
-        
+        // 🌟 توليد رمز عشوائي مكوّن من 6 أرقام
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+        // ⚙️ إعداد السيرفر المسؤول عن إرسال الإيميلات (Gmail)
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER, // إيميلك المربوط في الـ .env
+                pass: process.env.EMAIL_PASS  // كود الـ App Password الـ 16 حرف
+            }
+        });
+
+        // ✉️ تحديد تفاصيل الإيميل وضبط العنوان باسم Live Store
+        const mailOptions = {
+            from: `"Live Store" <${process.env.EMAIL_USER}>`, // الاسم اللي هيظهر للمستخدم فوق
+            to: email.toLowerCase().trim(),
+            subject: 'رمز إعادة تعيين كلمة المرور - Live Store',
+            html: `
+                <div style="direction: rtl; text-align: right; font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #d4af37; border-radius: 8px; background-color: #1a1a1a; color: #ffffff;">
+                    <h2 style="color: #d4af37; text-align: center;">Live Store</h2>
+                    <p>أهلاً بك،</p>
+                    <p>لقد تلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك. يرجى استخدام الرمز السري التالي لإتمام العملية:</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                        <span style="display: inline-block; padding: 10px 30px; background-color: #262626; border: 1px solid #d4af37; color: #d4af37; font-size: 24px; font-weight: bold; letter-spacing: 5px; border-radius: 4px;">
+                            ${otpCode}
+                        </span>
+                    </div>
+                    <p style="color: #aaa; font-size: 12px;">إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذا الإيميل بأمان.</p>
+                </div>
+            `
+        };
+
+        // إرسال الإيميل فعلياً للمستخدم
+        await transporter.sendMail(mailOptions);
+
         return res.status(200).json({ 
             success: true, 
             message: 'تم التحقق من الحساب وإرسال كود الاستعادة بنجاح.' 
