@@ -1,7 +1,7 @@
 const { connectDB, Item } = require('./_db');
 const bcrypt = require('bcryptjs');
 
-module.exports = async (req, res) => {
+module.exports = async (req, res) => { 
     if (req.method !== 'POST') {
         return res.status(405).json({ message: 'Method not allowed' });
     }

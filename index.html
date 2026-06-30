@@ -49,7 +49,19 @@
         a { color: #ffffff !important; text-decoration: none; font-weight: bold; }
         a:hover { color: #f3e5ab !important; }
 
-        /* زرار جوجل الأبيض الاحترافي المتناسق مع التحديث الجديد */
+        /* ستايل مخصص لرابط نسيت كلمة المرور باللون الذهبي */
+        .forgot-link {
+            color: #d4af37 !important;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .forgot-link:hover {
+            color: #f3e5ab !important;
+        }
+
+        /* زرار جوجل الأبيض الاحترافي */
         .btn-google {
             background-color: #ffffff;
             border: 1px solid #e4e4e4;
@@ -112,17 +124,22 @@
                     <input type="email" id="loginEmail" class="form-control" placeholder="name@example.com" required>
                     <div class="error-message d-none" id="emailError">الرجاء إدخال بريد إلكتروني صحيح ومطابق للشروط العالمية.</div>
                 </div>
+                
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">كلمة المرور</label>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-semibold mb-0">كلمة المرور</label>
+                        <a href="forgot-password.html" class="forgot-link">هل نسيت كلمة المرور؟</a>
+                    </div>
                     <input type="password" id="loginPassword" class="form-control" placeholder="********" required>
                     <div class="error-message d-none" id="passwordError">يجب أن لا تقل كلمة المرور عن 6 حروف وأرقام.</div>
                 </div>
+                
                 <button type="submit" class="btn btn-gold w-100 mt-3">دخول</button>
 
                 <div class="divider">أو</div>
                 
                 <button type="button" id="googleLoginBtn" class="btn btn-google">
-                    <i class="bi bi-google"></i> الدخول بواسطة حساب جوجل
+                    <i class="bi bi-google"></i> تسجيل الدخول باستخدام Google
                 </button>
             </form>
 
@@ -136,7 +153,6 @@
         document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
             
-            // إعادة تهيئة وإخفاء رسائل الخطأ السابقة
             document.getElementById('emailError').classList.add('d-none');
             document.getElementById('passwordError').classList.add('d-none');
             
@@ -148,7 +164,6 @@
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
 
-            // 1. فحص صحة الإيميل بـ Regex
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 document.getElementById('emailError').classList.remove('d-none');
@@ -156,14 +171,12 @@
                 hasError = true;
             }
 
-            // 2. فحص طول الباسورد
             if (password.length < 6) {
                 document.getElementById('passwordError').classList.remove('d-none');
                 if(!hasError) document.getElementById('loginPassword').focus();
                 hasError = true;
             }
 
-            // إيقاف الإرسال في حالة وجود أي خطأ بالمدخلات
             if (hasError) return;
 
             try {
@@ -176,19 +189,16 @@
                 const data = await res.json();
 
                 if (res.ok) {
-                    // إظهار صندوق نجاح أخضر مندمج مع التصميم المظلم
                     statusAlert.classList.remove('d-none');
                     statusAlert.style.cssText = "background-color: rgba(40, 167, 69, 0.2); color: #2ecc71; border: 1px solid #2ecc71;";
                     statusAlert.innerText = 'تم تسجيل الدخول بنجاح! جاري التوجيه للوحة التحكم...';
                     
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
-                    // توجيه ذكي بعد ثانيتين لملاحظة جمال التصميم والرسالة
                     setTimeout(() => {
                         window.location.href = 'dashboard.html';
                     }, 2000);
                 } else {
-                    // بيانات خاطئة من السيرفر (مثل باسوورد غلط أو إيميل مش موجود)
                     statusAlert.classList.remove('d-none');
                     statusAlert.style.cssText = "background-color: rgba(220, 53, 69, 0.2); color: #ff6b6b; border: 1px solid #ff6b6b;";
                     statusAlert.innerText = data.message || 'بيانات الدخول غير صحيحة.';
@@ -201,7 +211,6 @@
             }
         };
 
-        // زرار جوجل
         document.getElementById('googleLoginBtn').onclick = () => {
             const statusAlert = document.getElementById('formStatusAlert');
             statusAlert.className = 'alert mb-3 text-center';
