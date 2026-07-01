@@ -5,11 +5,10 @@
     { "src": "api/login.js", "use": "@vercel/node" },
     { "src": "api/item.js", "use": "@vercel/node" },
     { "src": "api/forgot-password.js", "use": "@vercel/node" },
-    { "src": "*.html", "use": "@vercel/static" },
-    { "src": "public/**", "use": "@vercel/static" }
+    { "src": "*.html", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/logo.png", "dest": "/public/logo.png" },
+    { "src": "/logo.png", "dest": "/logo.png" },
     { "src": "/api/register", "dest": "api/register.js" },
     { "src": "/api/login", "dest": "api/login.js" },
     { "src": "/api/item", "dest": "api/item.js" },
