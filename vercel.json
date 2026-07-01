@@ -8,6 +8,7 @@
     { "src": "*.html", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/logo.png", "dest": "/public/logo.png" },
     { "src": "/api/register", "dest": "api/register.js" },
     { "src": "/api/login", "dest": "api/login.js" },
     { "src": "/api/item", "dest": "api/item.js" },
