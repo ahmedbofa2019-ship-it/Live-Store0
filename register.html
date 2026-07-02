@@ -20,10 +20,6 @@
         .btn-gold { background-color: #d4af37; color: #121212; font-weight: bold; padding: 12px; width: 100%; margin-top: 20px; border: none; border-radius: 6px; transition: all 0.2s; }
         .btn-gold:hover { background-color: #f3e5ab; transform: translateY(-2px); }
         .btn-gold:disabled { background-color: #888; cursor: not-allowed; }
-        .btn-google { background-color: #ffffff; border: 1px solid #e4e4e4; color: #1f1f1f; font-weight: 500; padding: 12px; width: 100%; margin-top: 15px; border-radius: 6px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .btn-google:hover { background-color: #f7f7f7; }
-        .divider { display: flex; align-items: center; text-align: center; margin: 20px 0; color: #666; }
-        .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #444; }
         .error-message { font-size: 0.85rem; color: #ff6b6b !important; margin-top: 5px; }
     </style>
 </head>
@@ -55,6 +51,12 @@
                 </div>
                 
                 <div class="mb-3">
+                    <label class="text-gold form-label fw-semibold">الاسم المستعار / اسم المحل</label>
+                    <input type="text" id="regName" class="form-control" placeholder="أدخل اسمك أو اسم محلك" required>
+                    <div class="error-message d-none" id="nameError">الرجاء إدخال اسم صحيح.</div>
+                </div>
+
+                <div class="mb-3">
                     <label class="text-gold form-label fw-semibold">البريد الإلكتروني</label>
                     <input type="email" id="regEmail" class="form-control" placeholder="name@example.com" required>
                     <div class="error-message d-none" id="emailError">الرجاء إدخال بريد إلكتروني صحيح.</div>
@@ -67,12 +69,6 @@
                 </div>
                 
                 <button type="submit" class="btn btn-gold">إنشاء الحساب</button>
-
-                <div class="divider">أو</div>
-                
-                <button type="button" id="googleSignUpBtn" class="btn btn-google">
-                    <i class="bi bi-google"></i> التسجيل باستخدام Google
-                </button>
             </form>
         </div>
     </div>
@@ -99,10 +95,12 @@
             let hasError = false;
             if (!selectedRole) { document.getElementById('roleError').classList.remove('d-none'); hasError = true; }
 
+            const name = document.getElementById('regName').value.trim();
             const email = document.getElementById('regEmail').value.trim();
             const password = document.getElementById('regPassword').value;
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+            if (name.length < 2) { document.getElementById('nameError').classList.remove('d-none'); hasError = true; }
             if (!emailRegex.test(email)) { document.getElementById('emailError').classList.remove('d-none'); hasError = true; }
             if (password.length < 6) { document.getElementById('passwordError').classList.remove('d-none'); hasError = true; }
 
@@ -115,7 +113,7 @@
                 const res = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ role: selectedRole, email, password })
+                    body: JSON.stringify({ role: selectedRole, name, email, password })
                 });
 
                 const data = await res.json();
