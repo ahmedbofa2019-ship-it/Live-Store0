@@ -11,7 +11,13 @@ const connectDB = async () => {
 
 // تعريف هيكل البيانات (Schema) للمستخدمين والعناصر
 const ItemSchema = new mongoose.Schema({
-    email: { type: String, required: true },
+    email: { 
+        type: String, 
+        required: true, 
+        unique: true, // 🌟 يمنع وجود مستخدمين بنفس الإيميل
+        lowercase: true, // يحفظ الإيميل دائماً بحروف صغيرة
+        trim: true // يزيل أي مسافات فارغة بالخطأ
+    },
     password: { type: String, required: true },
     role: { type: String, required: true },
     name: String,
