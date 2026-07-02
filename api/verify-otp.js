@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 
 module.exports = async (req, res) => {
-    // التأكد أن الطلب POST فقط
     if (req.method !== 'POST') {
         return res.status(405).json({ success: false, message: 'Method Not Allowed' });
     }
@@ -10,29 +9,30 @@ module.exports = async (req, res) => {
         const { userOtp, otpToken } = req.body;
 
         if (!userOtp || !otpToken) {
-            return res.status(400).json({ success: false, message: 'البيانات المرسلة غير مكتملة' });
+            return res.status(400).json({ success: false, message: 'بيانات التحقق غير مكتملة، يرجى إعادة المحاولة من صفحة نسيت كلمة المرور.' });
         }
 
-        // 🔐 فك تشفير الـ Token ومطابقته بالـ JWT_SECRET المتسيف في لوحة التحكم
-        // الـ jwt بيتحقق تلقائياً إذا كانت الـ 5 دقائق مخلصتش
-        const decoded = jwt.verify(otpToken, process.env.JWT_SECRET);
-
-        // مقارنة الرمز اللي كتبه المستخدم بالرمز الحقيقي اللي كان متشفر جوه التوكن
-        if (decoded.otpCode === userOtp.trim()) {
-            return res.status(200).json({ 
-                success: true, 
-                message: 'الرمز صحيح! جاري تحويلك لتعيين كلمة المرور الجديدة.' 
-            });
-        } else {
-            return res.status(400).json({ success: false, message: 'الرمز الذي أدخلته غير صحيح' });
+        // فك تشفير التوكن والتحقق من صلاحيته
+        let decoded;
+        try {
+            decoded = jwt.verify(otpToken, process.env.JWT_SECRET);
+        } catch (err) {
+            return res.status(400).json({ success: false, message: 'انتهت صلاحية الرمز (5 دقائق)، يرجى طلب رمز جديد.' });
         }
+
+        // 🌟 المطابقة بالملي مع الاسم اللي في ملف الفورجيت (decoded.otpCode)
+        if (decoded.otpCode !== userOtp.trim()) {
+            return res.status(400).json({ success: false, message: 'رمز التحقق غير صحيح، تأكد من الرمز المرسل لإيميلك.' });
+        }
+
+        // لو الرمز صح، بنرجع نجاح
+        return res.status(200).json({ 
+            success: true, 
+            message: 'تم التحقق من الرمز بنجاح، جاري تحويلك لتعيين كلمة المرور الجديدة.' 
+        });
 
     } catch (error) {
-        // لو الـ 5 دقائق خلصوا أو التوكن ملعوب فيه، الـ jwt هيضرب خطأ هنا علطول
-        console.error("🔥 خطأ أثناء فك تشفير الـ OTP:", error);
-        return res.status(400).json({ 
-            success: false, 
-            message: 'انتهت صلاحية الرمز أو أنه غير صالح، يرجى إعادة المحاولة من جديد.' 
-        });
+        console.error("🔥 خطأ في سيرفر التحقق من الـ OTP:", error);
+        return res.status(500).json({ success: false, message: 'خطأ داخلي في السيرفر' });
     }
 };

@@ -1,5 +1,6 @@
 const { connectDB, Item } = require('./_db');
 const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken'); // 🌟 استدعاء مكتبة التشفير
 
 module.exports = async (req, res) => {
     // التأكد أن الطلب POST فقط
@@ -16,8 +17,10 @@ module.exports = async (req, res) => {
             return res.status(400).json({ success: false, message: 'البريد الإلكتروني مطلوب' });
         }
 
+        const cleanEmail = email.toLowerCase().trim();
+
         // البحث في موديل Item الموحد الشغال بيه المشروع
-        const user = await Item.findOne({ email: email.toLowerCase().trim() });
+        const user = await Item.findOne({ email: cleanEmail });
 
         // للأمان وحماية الخصوصية: نرجع دايماً نجاح عشان نمنع الـ User Enumeration
         if (!user) {
@@ -27,19 +30,23 @@ module.exports = async (req, res) => {
         // 🌟 توليد رمز عشوائي مكوّن من 6 أرقام
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
+        // 🔐 عمل الـ Token المشفر والمؤقت (ينتهي بعد 5 دقائق)
+        // بنخزن جواه الإيميل والـ otpCode عشان نقارنهم في خطوة التأكيد
+        const otpToken = jwt.sign({ email: cleanEmail, otpCode }, process.env.JWT_SECRET, { expiresIn: '5m' });
+
         // ⚙️ إعداد السيرفر المسؤول عن إرسال الإيميلات (Gmail)
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: process.env.EMAIL_USER, // إيميلك المربوط في الـ .env
-                pass: process.env.EMAIL_PASS  // كود الـ App Password الـ 16 حرف
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS 
             }
         });
 
         // ✉️ تحديد تفاصيل الإيميل وضبط العنوان باسم Live Store
         const mailOptions = {
-            from: `"Live Store" <${process.env.EMAIL_USER}>`, // الاسم اللي هيظهر للمستخدم فوق
-            to: email.toLowerCase().trim(),
+            from: `"Live Store" <${process.env.EMAIL_USER}>`,
+            to: cleanEmail,
             subject: 'رمز إعادة تعيين كلمة المرور - Live Store',
             html: `
                 <div style="direction: rtl; text-align: right; font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #d4af37; border-radius: 8px; background-color: #1a1a1a; color: #ffffff;">
@@ -59,9 +66,11 @@ module.exports = async (req, res) => {
         // إرسال الإيميل فعلياً للمستخدم
         await transporter.sendMail(mailOptions);
 
+        // 🌟 بنرجع الـ otpToken للمتصفح عشان يحفظه مؤقتاً في الـ localStorage
         return res.status(200).json({ 
             success: true, 
-            message: 'تم التحقق من الحساب وإرسال كود الاستعادة بنجاح.' 
+            message: 'تم التحقق من الحساب وإرسال كود الاستعادة بنجاح.',
+            otpToken 
         });
 
     } catch (error) {
