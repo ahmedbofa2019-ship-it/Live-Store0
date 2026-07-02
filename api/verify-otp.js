@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
         // لو الرمز صح، بنرجع نجاح
         return res.status(200).json({ 
             success: true, 
-            message: 'تم التحقق من الرمز بنجاح، جاري تحويلك لتعيين كلمة المرور الجديدة.' 
+            message: 'تم التحقق من الرمز بنجاح.' 
         });
 
     } catch (error) {
