@@ -76,8 +76,8 @@
             background-color: #1a1a1a;
             color: #ffffff;
             border-radius: 6px;
-            font-size: 22px; /* خط كبير ومميز للـ OTP */
-            letter-spacing: 8px; /* تباعد الأرقام عن بعضها */
+            font-size: 22px;
+            letter-spacing: 8px;
             text-align: center;
             outline: none;
             transition: border-color 0.3s;
@@ -172,7 +172,7 @@
         const submitBtn = document.getElementById('submitBtn');
         const msgBox = document.getElementById('msgBox');
 
-        // سحب الـ Token المشفر اللي حفظناه في الصفحة اللي فاتت
+        // سحب الـ Token المشفر من الـ localStorage
         const otpToken = localStorage.getItem('otpToken');
 
         if (!otpToken) {
@@ -187,14 +187,14 @@
         msgBox.style.display = 'none';
 
         try {
-            // إرسال الـ OTP والـ Token للسيرفر لمقارنتهم وفك التشفير مجاناً
-            const res = await fetch('http://localhost:5000/api/verify-otp', {
+            // 🌟 تم تعديل المسار هنا ليكون نسبي ليقرأ من Vercel مباشرة دون مشاكل الـ Localhost
+            const res = await fetch('/api/verify-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ 
-                    userOtp: otpInput.value,
+                    userOtp: otpInput.value.trim(),
                     otpToken: otpToken
                 })
             });

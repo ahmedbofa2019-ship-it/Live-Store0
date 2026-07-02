@@ -5,6 +5,7 @@
     { "src": "api/login.js", "use": "@vercel/node" },
     { "src": "api/item.js", "use": "@vercel/node" },
     { "src": "api/forgot-password.js", "use": "@vercel/node" },
+    { "src": "api/verify-otp.js", "use": "@vercel/node" },
     { "src": "*.html", "use": "@vercel/static" }
   ],
   "routes": [
@@ -13,6 +14,7 @@
     { "src": "/api/login", "dest": "api/login.js" },
     { "src": "/api/item", "dest": "api/item.js" },
     { "src": "/api/forgot-password", "dest": "api/forgot-password.js" },
+    { "src": "/api/verify-otp", "dest": "api/verify-otp.js" },
     { "src": "/(.*)", "dest": "/$1" }
   ]
 }
