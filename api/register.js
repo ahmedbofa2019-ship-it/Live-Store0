@@ -11,10 +11,11 @@ module.exports = async (req, res) => {
         // الاتصال بقاعدة البيانات
         await connectDB();
 
-        const { email, password, role } = req.body;
+        // قمنا بإضافة name هنا لاستقباله من الـ body
+        const { email, password, role, name } = req.body;
 
-        // 1. التأكد من وجود البيانات الأساسية
-        if (!email || !password || !role) {
+        // 1. التأكد من وجود البيانات الأساسية (أضفنا name للتأكد من وجوده)
+        if (!email || !password || !role || !name) {
             return res.status(400).json({ success: false, message: "برجاء، إدخال البيانات كاملة" });
         }
 
@@ -33,11 +34,12 @@ module.exports = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // حفظ الحساب
+        // حفظ الحساب مع إضافة حقل الاسم
         const newItem = new Item({
             email: email.toLowerCase().trim(),
             password: hashedPassword,
-            role: role || 'customer'
+            role: role || 'customer',
+            name: name // حفظ قيمة الاسم
         });
 
         await newItem.save();
@@ -45,7 +47,6 @@ module.exports = async (req, res) => {
         return res.status(201).json({ success: true, message: "تم التسجيل بنجاح" });
 
     } catch (error) {
-        // 🌟 التعديل الاحترافي هنا:
         // كود 11000 في MongoDB يعني Duplicate Key (تكرار إيميل)
         if (error.code === 11000) {
             return res.status(400).json({ 
