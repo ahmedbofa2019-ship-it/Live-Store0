@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استعادة كلمة المرور - Live Store</title>
+    <title>تأكيد رمز التحقق - Live Store</title>
     
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 280 70%22><text x=%2250%%22 y=%2248%22 font-size=%2242%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22%23d4af37%22 text-anchor=%22middle%22>Live Store</text></svg>">
     
@@ -69,21 +69,21 @@
             color: #d4af37;
         }
 
-        input[type="email"] {
+        input[type="text"] {
             width: 100%;
             padding: 14px;
             border: 1px solid #444;
             background-color: #1a1a1a;
             color: #ffffff;
             border-radius: 6px;
-            font-size: 17px;
+            font-size: 22px; /* خط كبير ومميز للـ OTP */
+            letter-spacing: 8px; /* تباعد الأرقام عن بعضها */
+            text-align: center;
             outline: none;
             transition: border-color 0.3s;
-            text-align: left;
-            direction: ltr;
         }
 
-        input[type="email"]:focus {
+        input[type="text"]:focus {
             border-color: #d4af37;
         }
 
@@ -146,60 +146,72 @@
 
 <div class="container">
     <div class="logo">Live Store</div>
-    <h2>استعادة كلمة المرور</h2>
-    <p>أدخل بريدك الإلكتروني المسجل وسنقوم بإرسال رمز تعيين سري مكون من 6 أرقام إليك.</p>
+    <h2>تأكيد رمز التحقق</h2>
+    <p>برجاء إدخال الرمز المكون من 6 أرقام الذي أرسلناه إلى بريدك الإلكتروني.</p>
 
-    <form id="forgotForm">
+    <form id="verifyForm">
         <div class="form-group">
-            <label for="email">البريد الإلكتروني</label>
-            <input type="email" id="email" placeholder="example@gmail.com" required>
+            <label for="otpCode">رمز التحقق (OTP)</label>
+            <input type="text" id="otpCode" placeholder="000000" maxlength="6" pattern="\d{6}" required>
         </div>
-        <button type="submit" id="submitBtn">إرسال رمز التحقق</button>
+        <button type="submit" id="submitBtn">تأكيد الرمز</button>
     </form>
 
     <div id="msgBox" class="message"></div>
 
     <div class="links">
-        <a href="/login.html">العودة لتسجيل الدخول</a>
+        <a href="/forgot-password.html">إعادة إرسال الرمز</a>
     </div>
 </div>
 
 <script>
-    document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const emailInput = document.getElementById('email');
+        const otpInput = document.getElementById('otpCode');
         const submitBtn = document.getElementById('submitBtn');
         const msgBox = document.getElementById('msgBox');
 
+        // سحب الـ Token المشفر اللي حفظناه في الصفحة اللي فاتت
+        const otpToken = localStorage.getItem('otpToken');
+
+        if (!otpToken) {
+            msgBox.className = 'message error';
+            msgBox.innerText = 'حدث خطأ، يرجى العودة لصفحة نسيت كلمة المرور أولاً.';
+            msgBox.style.display = 'block';
+            return;
+        }
+
         submitBtn.disabled = true;
-        submitBtn.innerText = 'جاري الإرسال...';
+        submitBtn.innerText = 'جاري التحقق...';
         msgBox.style.display = 'none';
 
         try {
-            const res = await fetch('/api/forgot-password', {
+            // إرسال الـ OTP والـ Token للسيرفر لمقارنتهم وفك التشفير مجاناً
+            const res = await fetch('http://localhost:5000/api/verify-otp', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email: emailInput.value })
+                body: JSON.stringify({ 
+                    userOtp: otpInput.value,
+                    otpToken: otpToken
+                })
             });
 
             const data = await res.json();
 
             if (data.success) {
-                // 🌟 حفظ التوكن المشفر والمؤقت اللي رجع من الـ API في الـ localStorage
-                if (data.otpToken) {
-                    localStorage.setItem('otpToken', data.otpToken);
-                }
-
                 msgBox.className = 'message success';
                 msgBox.innerText = data.message;
                 msgBox.style.display = 'block';
 
-                // تحويل تلقائي لصفحة التأكيد بعد ثانيتين
+                // مسح التوكن بعد النجاح كزيادة أمان
+                localStorage.removeItem('otpToken');
+
+                // تحويل المستخدم لصفحة تعيين الباسورد الجديد
                 setTimeout(() => {
-                    window.location.href = '/verify-otp.html';
+                    window.location.href = '/reset-password.html';
                 }, 2000);
 
             } else {
@@ -207,7 +219,7 @@
                 msgBox.innerText = data.message;
                 msgBox.style.display = 'block';
                 submitBtn.disabled = false;
-                submitBtn.innerText = 'إرسال رمز التحقق';
+                submitBtn.innerText = 'تأكيد الرمز';
             }
 
         } catch (error) {
@@ -215,7 +227,7 @@
             msgBox.innerText = 'حدث خطأ في الاتصال بالسيرفر، حاول مجدداً.';
             msgBox.style.display = 'block';
             submitBtn.disabled = false;
-            submitBtn.innerText = 'إرسال رمز التحقق';
+            submitBtn.innerText = 'تأكيد الرمز';
         }
     });
 </script>
