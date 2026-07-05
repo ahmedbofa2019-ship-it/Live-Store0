@@ -1,86 +1,70 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. استخراج التوكن تلقائياً من رابط الصفحة (URL)
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
+const { connectDB, Item } = require('./_db');
+const jwt = require('jsonwebtoken');
+const bcryptjs = require('bcryptjs');
 
-    const form = document.getElementById('resetForm');
-    const msg = document.getElementById('message');
-    const saveBtn = document.getElementById('saveBtn');
+module.exports = async (req, res) => {
+    // إعدادات الـ CORS الكاملة
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // إذا فتح الصفحة بدون توكن في الرابط نبهه فوراً وعطل زرار الحفظ
-    if (!token) {
-        if (msg) {
-            msg.style.color = "#ff6b6b";
-            msg.innerText = "⚠️ خطأ: الرابط لا يحتوي على رمز التحقق (token). يرجى الضغط على الرابط المرسل إلى بريدك الإلكتروني بالكامل.";
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: "طريقة الطلب غير مسموحة" });
+    }
+
+    try {
+        const { token, password } = req.body;
+
+        if (!token || !password) {
+            return res.status(400).json({ success: false, message: "البيانات المطلوبة ناقصة!" });
         }
-        if (saveBtn) saveBtn.disabled = true;
+
+        if (password.length < 6) {
+            return res.status(400).json({ success: false, message: "كلمة المرور يجب أن تكون 6 خانات على الأقل" });
+        }
+
+        // 1. الاتصال بقاعدة البيانات
+        await connectDB();
+
+        // 2. فك التوكن والتحقق منه
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (jwtErr) {
+            console.error("JWT Error:", jwtErr);
+            return res.status(400).json({ success: false, message: "انتهت صلاحية الرابط أو الرمز غير صالح." });
+        }
+
+        if (!decoded || !decoded.email) {
+            return res.status(400).json({ success: false, message: "الرمز لا يحتوي على بيانات مستخدم صالحة." });
+        }
+
+        const userEmail = decoded.email.toLowerCase().trim();
+
+        // 3. تشفير الباسورد الجديد
+        const salt = await bcryptjs.genSalt(10);
+        const hashedPassword = await bcryptjs.hash(password, salt);
+
+        // 4. التحديث في الداتابيز بطريقة آمنة ومباشرة تمنع الـ Crash
+        const updatedUser = await Item.findOneAndUpdate(
+            { email: userEmail },
+            { $set: { password: hashedPassword } },
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: "هذا الحساب لم يعد موجوداً في النظام." });
+        }
+
+        // لو وصلنا هنا يبقى كله تمام والتعديل سمع في المونجو
+        return res.status(200).json({ success: true, message: "تم تغيير كلمة المرور بنجاح!" });
+
+    } catch (globalError) {
+        console.error("Global Crash:", globalError);
+        return res.status(500).json({ success: false, message: `خطأ داخلي في السيرفر: ${globalError.message}` });
     }
-
-    // 2. معالجة إرسال الفورم عند الضغط على زر الحفظ
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-
-            // التحقق من تطابق الباسورد في الفرونت إند أولاً
-            if (password !== confirmPassword) {
-                msg.style.color = "#ff6b6b";
-                msg.innerText = "كلمتا المرور غير متطابقتين!";
-                return;
-            }
-
-            if (password.length < 6) {
-                msg.style.color = "#ff6b6b";
-                msg.innerText = "يجب ألا تقل كلمة المرور عن 6 أحرف.";
-                return;
-            }
-
-            // تجهيز الواجهة وقفل الزرار لمنع التكرار
-            if (saveBtn) saveBtn.disabled = true;
-            msg.style.color = "#d4af37";
-            msg.innerText = "جاري حفظ التغييرات...";
-
-            try {
-                // إرسال الطلب للـ API الخاص بك على Vercel
-                const res = await fetch('/api/reset-password', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ token, password })
-                });
-
-                // قراءة الرد كـ نص أولاً لضمان عدم حدوث كراش لو السيرفر وقع ورجع HTML
-                const responseText = await res.text();
-                let data;
-                
-                try {
-                    data = JSON.parse(responseText);
-                } catch(e) {
-                    msg.style.color = "#ff6b6b";
-                    msg.innerText = "السيرفر واجه مشكلة داخلية (500). راجع الـ Logs في Vercel.";
-                    if (saveBtn) saveBtn.disabled = false;
-                    return;
-                }
-
-                if (res.ok && data.success) {
-                    msg.style.color = "#2ecc71";
-                    msg.innerText = data.message || "تم تغيير كلمة المرور بنجاح!";
-                    form.style.display = "none"; // إخفاء الفورم بعد النجاح
-                } else {
-                    msg.style.color = "#ff6b6b";
-                    msg.innerText = data.message || "فشل في تعيين كلمة المرور الجديدة.";
-                    if (saveBtn) saveBtn.disabled = false;
-                }
-
-            } catch (error) {
-                console.error("Fetch Error:", error);
-                msg.style.color = "#ff6b6b";
-                msg.innerText = "حدث خطأ في الاتصال بالشبكة، تحقق من اتصالك وحاول مجدداً.";
-                if (saveBtn) saveBtn.disabled = false;
-            }
-        });
-    }
-});
+};
