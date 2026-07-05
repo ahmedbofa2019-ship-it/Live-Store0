@@ -109,7 +109,7 @@
             msg.innerText = "جاري الحفظ...";
 
             try {
-                const res = await fetch('/api/reset-password', {
+              const res = await fetch('https://live-store0.vercel.app/api/reset-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token: resetToken, password: password })
