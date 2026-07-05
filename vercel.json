@@ -16,7 +16,7 @@
     { "src": "/api/item", "dest": "api/item.js" },
     { "src": "/api/forgot-password", "dest": "api/forgot-password.js" },
     { "src": "/api/verify-otp", "dest": "api/verify-otp.js" },
-    { "src": "/api/reset", "dest": "api/reset.js" },
+    { "src": "/api/reset-password", "dest": "api/reset-password.js" },
     { "src": "/(.*)", "dest": "/$1" }
   ]
 }
