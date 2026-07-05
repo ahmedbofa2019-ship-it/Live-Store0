@@ -1,10 +1,9 @@
-// استدعاء ملف الـ _db بمسار نسبي صريح متوافق مع Vercel Serverless
 const { connectDB, Item } = require('./_db');
 const jwt = require('jsonwebtoken');
 const bcryptjs = require('bcryptjs');
 
 module.exports = async (req, res) => {
-    // إعدادات الـ CORS الكاملة لمنع أي تعليق في الفرونت إند
+    // إعدادات الـ CORS الكاملة لتفادي أي حظر من المتصفح
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -31,13 +30,13 @@ module.exports = async (req, res) => {
         // 1. الاتصال بقاعدة البيانات
         await connectDB();
 
-        // 2. التحقق من صحة التوكن
+        // 2. فك التوكن والتحقق منه
         let decoded;
         try {
             decoded = jwt.verify(token, process.env.JWT_SECRET);
         } catch (jwtErr) {
-            console.error("JWT Verification Error:", jwtErr);
-            return res.status(400).json({ success: false, message: "انتهت صلاحية الرابط أو الرمز غير صالح، اطلب رمزاً جديداً." });
+            console.error("JWT Error:", jwtErr);
+            return res.status(400).json({ success: false, message: "انتهت صلاحية الرابط أو الرمز غير صالح." });
         }
 
         if (!decoded || !decoded.email) {
@@ -46,11 +45,11 @@ module.exports = async (req, res) => {
 
         const userEmail = decoded.email.toLowerCase().trim();
 
-        // 3. تشفير كلمة المرور الجديدة
+        // 3. تشفير الباسورد الجديد
         const salt = await bcryptjs.genSalt(10);
         const hashedPassword = await bcryptjs.hash(password, salt);
 
-        // 4. التحديث المباشر والآمن في الموديل المستدعى
+        // 4. التحديث في الداتابيز
         const updatedUser = await Item.findOneAndUpdate(
             { email: userEmail },
             { $set: { password: hashedPassword } },
@@ -58,13 +57,13 @@ module.exports = async (req, res) => {
         );
 
         if (!updatedUser) {
-            return res.status(404).json({ success: false, message: "هذا الحساب لم يعد موجوداً في النظام." });
+            return res.status(404).json({ success: false, message: "هذا الحساب لم يعد موجوداً." });
         }
 
         return res.status(200).json({ success: true, message: "تم تغيير كلمة المرور بنجاح!" });
 
     } catch (globalError) {
-        console.error("Global Server Crash caught:", globalError);
+        console.error("Global Crash:", globalError);
         return res.status(500).json({ success: false, message: `خطأ من السيرفر: ${globalError.message}` });
     }
 };
