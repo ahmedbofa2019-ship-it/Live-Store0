@@ -118,7 +118,7 @@
     </div>
 
     <script>
-        // 1. استخراج التوكن من الرابط
+        // 1. استخراج التوكن من رابط الصفحة (URL) تلقائياً
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
 
@@ -126,7 +126,7 @@
         const msg = document.getElementById('message');
         const saveBtn = document.getElementById('saveBtn');
 
-        // تنبيه فوري لو الرابط مفيهوش التوكن
+        // إذا فتح المستخدم الصفحة بدون توكن في الرابط نبهه فوراً
         if (!token) {
             msg.style.color = "#ff6b6b";
             msg.innerText = "⚠️ خطأ: الرابط لا يحتوي على رمز التحقق (token). يرجى الضغط على الرابط المرسل إلى بريدك الإلكتروني بالكامل.";
@@ -139,6 +139,7 @@
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
 
+            // التحقق من تطابق الباسورد في الفرونت إند أولاً
             if (password !== confirmPassword) {
                 msg.style.color = "#ff6b6b";
                 msg.innerText = "كلمتا المرور غير متطابقتين!";
@@ -151,12 +152,13 @@
                 return;
             }
 
+            // تجهيز الواجهة للطلب
             saveBtn.disabled = true;
             msg.style.color = "#d4af37";
             msg.innerText = "جاري حفظ التغييرات...";
 
             try {
-                // إرسال مباشر إلى مسار السيرفر على Vercel
+                // إرسال الطلب للـ API الخاص بك على Vercel
                 const res = await fetch('/api/reset-password', {
                     method: 'POST',
                     headers: {
@@ -165,14 +167,13 @@
                     body: JSON.stringify({ token, password })
                 });
 
-                // قراءة الرد كـ نص أولاً لضمان عدم حدوث كراش لو السيرفر وقع
+                // قراءة الرد كـ نص أولاً لضمان عدم حدوث كراش لو السيرفر وقع ورجع HTML
                 const responseText = await res.text();
                 let data;
                 
                 try {
                     data = JSON.parse(responseText);
                 } catch(e) {
-                    // لو السيرفر رجع HTML خطأ من Vercel يظهر هنا
                     msg.style.color = "#ff6b6b";
                     msg.innerText = "السيرفر واجه مشكلة داخلية (500). راجع الـ Logs في Vercel.";
                     saveBtn.disabled = false;
@@ -182,7 +183,7 @@
                 if (res.ok && data.success) {
                     msg.style.color = "#2ecc71";
                     msg.innerText = data.message || "تم تغيير كلمة المرور بنجاح!";
-                    form.style.display = "none";
+                    form.style.display = "none"; // إخفاء الفورم بعد النجاح
                 } else {
                     msg.style.color = "#ff6b6b";
                     msg.innerText = data.message || "فشل في تعيين كلمة المرور الجديدة.";
