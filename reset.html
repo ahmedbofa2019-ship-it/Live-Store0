@@ -27,9 +27,14 @@
         .form-control { 
             background-color: #262626 !important; 
             border: 1px solid #444 !important; 
-            color: #d4af37 !important; 
+            color: #ffffff !important; /* لون النص المكتوب أبيض للوضوح */
             padding: 15px; 
             font-size: 1rem;
+        }
+        /* 🌟 تنسيق الـ Placeholder باللون الرمادي */
+        .form-control::placeholder {
+            color: #888 !important; 
+            opacity: 1; /* لضمان ظهور اللون في كل المتصفحات */
         }
         .form-control:focus { 
             background-color: #2d2d2d !important; 
@@ -79,7 +84,6 @@
             const msg = document.getElementById('msg');
             const saveBtn = document.getElementById('saveBtn');
             
-            // 1. التحقق من البيانات
             if (password.length < 6) {
                 msg.innerText = "كلمة المرور يجب أن تكون 6 خانات على الأقل";
                 msg.style.color = "#ff6b6b";
@@ -92,7 +96,6 @@
                 return;
             }
 
-            // 2. جلب التوكن من الـ LocalStorage (الربط الصحيح)
             const resetToken = localStorage.getItem('resetToken');
             if (!resetToken) {
                 msg.innerText = "انتهت صلاحية الجلسة، يرجى إعادة طلب الرمز.";
@@ -104,15 +107,11 @@
             msg.style.color = "#d4af37";
             msg.innerText = "جاري الحفظ...";
 
-            // 3. إرسال الطلب للسيرفر
             try {
                 const res = await fetch('/api/reset-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        token: resetToken, 
-                        password: password 
-                    })
+                    body: JSON.stringify({ token: resetToken, password: password })
                 });
 
                 const data = await res.json();
@@ -120,7 +119,7 @@
                 if (data.success) {
                     msg.style.color = "#2ecc71";
                     msg.innerText = "تم تغيير كلمة المرور بنجاح! سيتم تحويلك...";
-                    localStorage.removeItem('resetToken'); // مسح التوكن بعد النجاح
+                    localStorage.removeItem('resetToken');
                     setTimeout(() => window.location.href = '/login.html', 2000);
                 } else {
                     msg.style.color = "#ff6b6b";
