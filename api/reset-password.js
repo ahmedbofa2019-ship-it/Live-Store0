@@ -1,57 +1,64 @@
-// api/reset-password.js
-const { connectDB, Item } = require('../_db'); // تأكد من استيراد الموديل الصحيح لمشروعك
-const bcrypt = require('bcryptjs');
+const { connectDB, Item } = require('./_db');
 const jwt = require('jsonwebtoken');
+const bcryptjs = require('bcryptjs');
 
 module.exports = async (req, res) => {
-    // التأكد من أن الطلب POST فقط
+    // تفعيل الـ CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, message: "طريقة غير مسموحة" });
+        return res.status(405).json({ success: false, message: "طريقة الطلب غير مسموحة" });
     }
 
     try {
-        await connectDB();
         const { token, password } = req.body;
 
-        // التحقق من وجود البيانات
         if (!token || !password) {
-            return res.status(400).json({ success: false, message: "بيانات ناقصة" });
+            return res.status(400).json({ success: false, message: "البيانات المطلوبة ناقصة!" });
         }
 
-        // 1. فك تشفير التوكن (تأكد أن JWT_SECRET هو نفسه المستخدم في عملية التحقق)
+        if (password.length < 6) {
+            return res.status(400).json({ success: false, message: "كلمة المرور يجب أن تكون 6 خانات على الأقل" });
+        }
+
+        // 1. الاتصال بقاعدة البيانات
+        await connectDB();
+
+        // 2. التحقق من صحة التوكن وفك تشفيره
         let decoded;
         try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET);
-        } catch (err) {
-            return res.status(400).json({ success: false, message: "الرابط غير صالح أو منتهي الصلاحية" });
-        }
-        
-        // 2. تشفير كلمة المرور الجديدة
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // 3. تحديث الباسورد في قاعدة البيانات باستخدام البريد الإلكتروني الموجود في التوكن
-        const updatedUser = await Item.findOneAndUpdate(
-            { email: decoded.email }, 
-            { password: hashedPassword },
-            { new: true }
-        );
-
-        if (!updatedUser) {
-            return res.status(404).json({ success: false, message: "المستخدم غير موجود" });
+            // تأكد تماماً أن JWT_SECRET مضاف في إعدادات Vercel بنفس القيمة المستخدمة عند إنشاء التوكن
+            decoded = jwt.verify(token, process.env.JWT_SECRET || 'YOUR_SECRET_KEY');
+        } catch (jwtErr) {
+            console.error("JWT Verification Error:", jwtErr);
+            return res.status(400).json({ success: false, message: "انتهت صلاحية الجلسة أو الرمز غير صالح، اطلب رمزاً جديداً." });
         }
 
-        // 4. إرجاع نجاح العملية
-        return res.status(200).json({ 
-            success: true, 
-            message: "تم تغيير كلمة المرور بنجاح!" 
-        });
+        // 3. البحث عن المستخدم في الداتابيز باستخدام الإيميل المستخرج من التوكن
+        const user = await Item.findOne({ email: decoded.email.toLowerCase().trim() });
+        if (!user) {
+            return res.status(404).json({ success: false, message: "الحساب غير موجود في النظام." });
+        }
+
+        // 4. تشفير كلمة المرور الجديدة باستخدام bcryptjs
+        const salt = await bcryptjs.genSalt(10);
+        const hashedPassword = await bcryptjs.hash(password, salt);
+
+        // 5. تحديث كلمة المرور في قاعدة البيانات وحفظها
+        user.password = hashedPassword;
+        await user.save();
+
+        console.log(`[Success] تم تحديث باسوورد الحساب بنجاح: ${user.email}`);
+        return res.status(200).json({ success: true, message: "تم تغيير كلمة المرور بنجاح!" });
 
     } catch (error) {
-        console.error("🔥 خطأ في سيرفر تحديث كلمة المرور:", error);
-        return res.status(500).json({ 
-            success: false, 
-            message: "خطأ داخلي في السيرفر، يرجى المحاولة لاحقاً." 
-        });
+        console.error("Reset Password Server Error:", error);
+        return res.status(500).json({ success: false, message: "حدث خطأ داخلي في السيرفر." });
     }
 };
