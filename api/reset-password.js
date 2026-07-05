@@ -1,51 +1,35 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('resetForm');
-    const msg = document.getElementById('message');
-    const token = new URLSearchParams(window.location.search).get('token');
+const { connectDB, Item } = require('./_db');
+const jwt = require('jsonwebtoken');
+const bcryptjs = require('bcryptjs');
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+module.exports = async (req, res) => {
+    // 1. تأكيد الرد كـ JSON دائماً
+    res.setHeader('Content-Type', 'application/json');
+
+    if (req.method !== 'POST') {
+        return res.status(405).json({ success: false, message: "Method not allowed" });
+    }
+
+    try {
+        await connectDB();
+        const { token, password } = req.body;
+
+        if (!token) throw new Error("التوكن مفقود");
         
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const salt = await bcryptjs.genSalt(10);
+        const hash = await bcryptjs.hash(password, salt);
 
-        if (password !== confirmPassword) {
-            msg.innerText = "كلمتا المرور غير متطابقتين!";
-            msg.style.color = "#ff6b6b";
-            return;
-        }
+        const updated = await Item.findOneAndUpdate({ email: decoded.email }, { password: hash });
+        
+        if (!updated) throw new Error("المستخدم غير موجود");
 
-        msg.innerText = "جاري الحفظ...";
-        msg.style.color = "#d4af37";
-
-        try {
-            // تأكد من أن المسار هنا هو نفس اسم ملف الـ API داخل مجلد api
-            const res = await fetch('/api/reset-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, password })
-            });
-
-            const text = await res.text(); // استقبال الرد كنص أولاً
-            
-            try {
-                const data = JSON.parse(text); // محاولة تحويله لـ JSON
-                if (res.ok) {
-                    msg.innerText = data.message || "تم تغيير كلمة المرور!";
-                    msg.style.color = "#2ecc71";
-                } else {
-                    msg.innerText = data.message || "حدث خطأ من السيرفر";
-                    msg.style.color = "#ff6b6b";
-                }
-            } catch (e) {
-                // هنا لو الرد ليس JSON (أي صفحة خطأ HTML)
-                console.error("Server Error Response:", text);
-                msg.innerText = "خطأ: السيرفر لا يستجيب كـ API. تأكد من أن ملف reset-password.js موجود داخل مجلد api.";
-                msg.style.color = "#ff6b6b";
-            }
-        } catch (err) {
-            msg.innerText = "فشل الاتصال بالسيرفر";
-            msg.style.color = "#ff6b6b";
-        }
-    });
-});
+        return res.status(200).json({ success: true, message: "تم تغيير كلمة المرور بنجاح!" });
+    } catch (err) {
+        // [هنا السحر]: أي خطأ هيحصل، السيرفر هيرد بـ JSON فيه اسم الخطأ بالظبط
+        return res.status(500).json({ 
+            success: false, 
+            message: "Server Error: " + err.message 
+        });
+    }
+};
