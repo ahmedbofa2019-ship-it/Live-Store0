@@ -1,9 +1,10 @@
+// استدعاء ملف الـ _db بمسار نسبي صريح متوافق مع Vercel Serverless
 const { connectDB, Item } = require('./_db');
 const jwt = require('jsonwebtoken');
 const bcryptjs = require('bcryptjs');
 
 module.exports = async (req, res) => {
-    // تفعيل الـ CORS
+    // إعدادات الـ CORS الكاملة لمنع أي تعليق في الفرونت إند
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -30,18 +31,17 @@ module.exports = async (req, res) => {
         // 1. الاتصال بقاعدة البيانات
         await connectDB();
 
-        // 2. التحقق من صحة التوكن وفك تشفيره بشكل آمن
+        // 2. التحقق من صحة التوكن
         let decoded;
         try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET || 'YOUR_SECRET_KEY');
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
         } catch (jwtErr) {
             console.error("JWT Verification Error:", jwtErr);
-            return res.status(400).json({ success: false, message: "انتهت صلاحية الجلسة أو الرمز غير صالح، اطلب رمزاً جديداً." });
+            return res.status(400).json({ success: false, message: "انتهت صلاحية الرابط أو الرمز غير صالح، اطلب رمزاً جديداً." });
         }
 
-        // التأكد من أن التوكن تم فكه بنجاح ويحتوي على البريد الإلكتروني
         if (!decoded || !decoded.email) {
-            return res.status(400).json({ success: false, message: "الرمز غير صالح أو لا يحتوي على بيانات مستخدم." });
+            return res.status(400).json({ success: false, message: "الرمز لا يحتوي على بيانات مستخدم صالحة." });
         }
 
         const userEmail = decoded.email.toLowerCase().trim();
@@ -50,22 +50,21 @@ module.exports = async (req, res) => {
         const salt = await bcryptjs.genSalt(10);
         const hashedPassword = await bcryptjs.hash(password, salt);
 
-        // 4. تحديث كلمة المرور مباشرة في قاعدة البيانات والتحقق من وجود الحساب
+        // 4. التحديث المباشر والآمن في الموديل المستدعى
         const updatedUser = await Item.findOneAndUpdate(
             { email: userEmail },
             { $set: { password: hashedPassword } },
-            { new: true } // ليعيد المستند بعد التحديث
+            { new: true }
         );
 
         if (!updatedUser) {
-            return res.status(404).json({ success: false, message: "الحساب المرتبط بهذا الرمز غير موجود في النظام." });
+            return res.status(404).json({ success: false, message: "هذا الحساب لم يعد موجوداً في النظام." });
         }
 
-        console.log(`[Success] تم تحديث كلمة المرور بنجاح للحساب: ${userEmail}`);
         return res.status(200).json({ success: true, message: "تم تغيير كلمة المرور بنجاح!" });
 
-    } catch (error) {
-        console.error("Reset Password Server Error:", error);
-        return res.status(500).json({ success: false, message: "حدث خطأ داخلي في السيرفر." });
+    } catch (globalError) {
+        console.error("Global Server Crash caught:", globalError);
+        return res.status(500).json({ success: false, message: `خطأ من السيرفر: ${globalError.message}` });
     }
 };
