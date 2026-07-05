@@ -1,6 +1,6 @@
 const { connectDB, Item } = require('./_db');
 const nodemailer = require('nodemailer');
-const jwt = require('jsonwebtoken'); // 🌟 استدعاء مكتبة التشفير
+const jwt = require('jsonwebtoken');
 
 module.exports = async (req, res) => {
     // التأكد أن الطلب POST فقط
@@ -19,19 +19,18 @@ module.exports = async (req, res) => {
 
         const cleanEmail = email.toLowerCase().trim();
 
-        // البحث في موديل Item الموحد الشغال بيه المشروع
+        // البحث في موديل Item
         const user = await Item.findOne({ email: cleanEmail });
 
-        // للأمان وحماية الخصوصية: نرجع دايماً نجاح عشان نمنع الـ User Enumeration
+        // التعديل هنا: إذا لم يوجد المستخدم، نرجع خطأ صريح (404) ليظهر في صفحة الواجهة
         if (!user) {
-            return res.status(200).json({ success: true, message: 'إذا كان الحساب موجوداً، فسيتم إرسال رمز الاستعادة.' });
+            return res.status(404).json({ success: false, message: 'هذا البريد الإلكتروني غير مسجل لدينا.' });
         }
 
         // 🌟 توليد رمز عشوائي مكوّن من 6 أرقام
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
         // 🔐 عمل الـ Token المشفر والمؤقت (ينتهي بعد 5 دقائق)
-        // بنخزن جواه الإيميل والـ otpCode عشان نقارنهم في خطوة التأكيد
         const otpToken = jwt.sign({ email: cleanEmail, otpCode }, process.env.JWT_SECRET, { expiresIn: '5m' });
 
         // ⚙️ إعداد السيرفر المسؤول عن إرسال الإيميلات (Gmail)
@@ -43,7 +42,7 @@ module.exports = async (req, res) => {
             }
         });
 
-        // ✉️ تحديد تفاصيل الإيميل وضبط العنوان باسم Live Store
+        // ✉️ تحديد تفاصيل الإيميل
         const mailOptions = {
             from: `"Live Store" <${process.env.EMAIL_USER}>`,
             to: cleanEmail,
@@ -63,18 +62,18 @@ module.exports = async (req, res) => {
             `
         };
 
-        // إرسال الإيميل فعلياً للمستخدم
+        // إرسال الإيميل
         await transporter.sendMail(mailOptions);
 
-        // 🌟 بنرجع الـ otpToken للمتصفح عشان يحفظه مؤقتاً في الـ localStorage
+        // إرجاع النتيجة للمتصفح
         return res.status(200).json({ 
             success: true, 
-            message: 'تم التحقق من الحساب وإرسال كود الاستعادة بنجاح.',
+            message: 'تم إرسال كود الاستعادة إلى بريدك الإلكتروني.',
             otpToken 
         });
 
     } catch (error) {
         console.error("🔥 خطأ في سيرفر استعادة كلمة المرور:", error);
-        return res.status(500).json({ success: false, message: 'خطأ داخلي في السيرفر' });
+        return res.status(500).json({ success: false, message: 'خطأ داخلي في السيرفر، يرجى المحاولة لاحقاً.' });
     }
 };
