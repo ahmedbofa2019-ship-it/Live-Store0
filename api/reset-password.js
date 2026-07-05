@@ -1,85 +1,26 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. محاولة استخراج التوكن من الرابط تلقائياً
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
+const { connectDB, Item } = require('./_db');
+const jwt = require('jsonwebtoken');
+const bcryptjs = require('bcryptjs');
 
-    const form = document.getElementById('resetForm');
-    const msg = document.getElementById('message');
-    const saveBtn = document.getElementById('saveBtn');
+module.exports = async (req, res) => {
+    if (req.method !== 'POST') return res.status(405).json({ success: false, message: "Method not allowed" });
 
-    // تأكيد فتح الأزرار والفورم تماماً عند البداية لتجنب أي رسائل حمراء فورية
-    if (saveBtn) saveBtn.disabled = false;
+    try {
+        const { token, password } = req.body;
+        if (!token) return res.status(400).json({ success: false, message: "الرابط غير صالح (لا يوجد رمز تحقق)" });
 
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+        await connectDB();
+        
+        // التحقق من التوكن
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const salt = await bcryptjs.genSalt(10);
+        const hash = await bcryptjs.hash(password, salt);
 
-            // التحقق من تطابق الباسورد
-            if (password !== confirmPassword) {
-                msg.style.color = "#ff6b6b";
-                msg.innerText = "كلمتا المرور غير متطابقتين!";
-                return;
-            }
+        await Item.findOneAndUpdate({ email: decoded.email }, { password: hash });
 
-            if (password.length < 6) {
-                msg.style.color = "#ff6b6b";
-                msg.innerText = "يجب ألا تقل كلمة المرور عن 6 أحرف.";
-                return;
-            }
-
-            // [التعديل الاحترافي]: التحقق من وجود التوكن فقط عند محاولة الحفظ
-            if (!token) {
-                msg.style.color = "#ff6b6b";
-                msg.innerText = "⚠️ انتهت صلاحية الجلسة أو الرابط غير صالح. يرجى إعادة طلب رابط جديد من صفحة نسيت كلمة المرور.";
-                return;
-            }
-
-            // إعداد الواجهة لإرسال الطلب
-            saveBtn.disabled = true;
-            msg.style.color = "#d4af37";
-            msg.innerText = "جاري حفظ التغييرات...";
-
-            try {
-                // إرسال الطلب إلى السيرفر الخاص بك على Vercel
-                const res = await fetch('/api/reset-password', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ token, password })
-                });
-
-                const responseText = await res.text();
-                let data;
-                
-                try {
-                    data = JSON.parse(responseText);
-                } catch(e) {
-                    msg.style.color = "#ff6b6b";
-                    msg.innerText = "السيرفر واجه مشكلة داخلية (500). راجع الـ Logs في Vercel.";
-                    saveBtn.disabled = false;
-                    return;
-                }
-
-                if (res.ok && data.success) {
-                    msg.style.color = "#2ecc71";
-                    msg.innerText = data.message || "تم تغيير كلمة المرور بنجاح!";
-                    form.style.display = "none"; // إخفاء الفورم عند النجاح
-                } else {
-                    msg.style.color = "#ff6b6b";
-                    msg.innerText = data.message || "فشل في تعيين كلمة المرور الجديدة.";
-                    saveBtn.disabled = false;
-                }
-
-            } catch (error) {
-                console.error("Fetch Error:", error);
-                msg.style.color = "#ff6b6b";
-                msg.innerText = "حدث خطأ في الاتصال بالشبكة، تحقق من اتصالك وحاول مجدداً.";
-                saveBtn.disabled = false;
-            }
-        });
+        return res.status(200).json({ success: true, message: "تم تغيير كلمة المرور بنجاح!" });
+    } catch (err) {
+        return res.status(400).json({ success: false, message: "فشل التوثيق: الرمز غير صالح أو انتهت صلاحيته" });
     }
-});
+};
