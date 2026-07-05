@@ -30,31 +30,38 @@ module.exports = async (req, res) => {
         // 1. الاتصال بقاعدة البيانات
         await connectDB();
 
-        // 2. التحقق من صحة التوكن وفك تشفيره
+        // 2. التحقق من صحة التوكن وفك تشفيره بشكل آمن
         let decoded;
         try {
-            // تأكد تماماً أن JWT_SECRET مضاف في إعدادات Vercel بنفس القيمة المستخدمة عند إنشاء التوكن
             decoded = jwt.verify(token, process.env.JWT_SECRET || 'YOUR_SECRET_KEY');
         } catch (jwtErr) {
             console.error("JWT Verification Error:", jwtErr);
             return res.status(400).json({ success: false, message: "انتهت صلاحية الجلسة أو الرمز غير صالح، اطلب رمزاً جديداً." });
         }
 
-        // 3. البحث عن المستخدم في الداتابيز باستخدام الإيميل المستخرج من التوكن
-        const user = await Item.findOne({ email: decoded.email.toLowerCase().trim() });
-        if (!user) {
-            return res.status(404).json({ success: false, message: "الحساب غير موجود في النظام." });
+        // التأكد من أن التوكن تم فكه بنجاح ويحتوي على البريد الإلكتروني
+        if (!decoded || !decoded.email) {
+            return res.status(400).json({ success: false, message: "الرمز غير صالح أو لا يحتوي على بيانات مستخدم." });
         }
 
-        // 4. تشفير كلمة المرور الجديدة باستخدام bcryptjs
+        const userEmail = decoded.email.toLowerCase().trim();
+
+        // 3. تشفير كلمة المرور الجديدة
         const salt = await bcryptjs.genSalt(10);
         const hashedPassword = await bcryptjs.hash(password, salt);
 
-        // 5. تحديث كلمة المرور في قاعدة البيانات وحفظها
-        user.password = hashedPassword;
-        await user.save();
+        // 4. تحديث كلمة المرور مباشرة في قاعدة البيانات والتحقق من وجود الحساب
+        const updatedUser = await Item.findOneAndUpdate(
+            { email: userEmail },
+            { $set: { password: hashedPassword } },
+            { new: true } // ليعيد المستند بعد التحديث
+        );
 
-        console.log(`[Success] تم تحديث باسوورد الحساب بنجاح: ${user.email}`);
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: "الحساب المرتبط بهذا الرمز غير موجود في النظام." });
+        }
+
+        console.log(`[Success] تم تحديث كلمة المرور بنجاح للحساب: ${userEmail}`);
         return res.status(200).json({ success: true, message: "تم تغيير كلمة المرور بنجاح!" });
 
     } catch (error) {
