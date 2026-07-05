@@ -116,18 +116,13 @@
                 });
 
                 // 🌟 التحقق من نجاح طلب السيرفر قبل محاولة قراءة الـ JSON لمنع انهيار الـ Fetch
-                if (!res.ok) {
-                    let errorText = "فشل في تعيين كلمة المرور الجديدة.";
-                    try {
-                        const errorData = await res.json();
-                        if (errorData && errorData.message) errorText = errorData.message;
-                    } catch(e) { /* في حال كان الرد ليس JSON صريحاً */ }
-                    
-                    msg.style.color = "#ff6b6b";
-                    msg.innerText = errorText;
-                    saveBtn.disabled = false;
-                    return;
-                }
+              if (!res.ok) {
+    const errorData = await res.json();
+    msg.style.color = "#ff6b6b";
+    msg.innerText = errorData.message || "خطأ من السيرفر";
+    saveBtn.disabled = false;
+    return;
+}
 
                 const data = await res.json();
                 
