@@ -105,16 +105,16 @@
             
             <div id="formStatusAlert" class="alert d-none mb-3 text-center" role="alert" style="font-size: 0.95rem; border-radius: 6px;"></div>
 
-            <form id="loginForm" novalidate>
+            <form id="loginForm" action="dashboard.html" method="POST" novalidate>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">البريد الإلكتروني</label>
-                    <input type="email" id="loginEmail" class="form-control" placeholder="name@example.com" autocomplete="username" required>
+                    <input type="email" name="username" id="loginEmail" class="form-control" placeholder="name@example.com" autocomplete="username" required>
                     <div class="error-message d-none" id="emailError">الرجاء إدخال بريد إلكتروني صحيح ومطابق للشروط العالمية.</div>
                 </div>
                 
                 <div class="mb-3">
                     <label class="form-label fw-semibold mb-2">كلمة المرور</label>
-                    <input type="password" id="loginPassword" class="form-control" placeholder="********" autocomplete="current-password" required>
+                    <input type="password" name="password" id="loginPassword" class="form-control" placeholder="********" autocomplete="current-password" required>
                     <div class="error-message d-none" id="passwordError">يجب أن لا تقل كلمة المرور عن 6 حروف وأرقام.</div>
                 </div>
                 
@@ -128,13 +128,13 @@
             </form>
 
             <div class="text-center mt-4">
-                <p class="small mb-0">ليس لديك حساب؟ <a href="register.html">أنشئ حسابك الآن</a></p>
+                <p class="small mb-0">ليس لديك حساب？ <a href="register.html">أنشئ حسابك الآن</a></p>
             </div>
         </div>
     </div>
 
     <script>
-        // الكود المضاف للتأكد من جلب البريد الإلكتروني المحفوظ فقط عند تحميل الصفحة
+        // جلب الإيميل تلقائياً عند تحميل الصفحة
         window.onload = () => {
             const savedEmail = localStorage.getItem('lastEmail');
             if (savedEmail) {
@@ -142,8 +142,14 @@
             }
         };
 
+        // متغير لمنع التكرار اللانهائي عند تفعيل الـ Trick
+        let isVerified = false;
+
         document.getElementById('loginForm').onsubmit = async (e) => {
-            e.preventDefault();
+            // لو تم التحقق والباك اند وافق، اسمح للفورم تتبعت طبيعي للمتصفح عشان تظهر نافذة الحفظ
+            if (isVerified) return; 
+            
+            e.preventDefault(); 
             
             document.getElementById('emailError').classList.add('d-none');
             document.getElementById('passwordError').classList.add('d-none');
@@ -183,16 +189,17 @@
                 if (res.ok) {
                     statusAlert.classList.remove('d-none');
                     statusAlert.style.cssText = "background-color: rgba(40, 167, 69, 0.2); color: #2ecc71; border: 1px solid #2ecc71;";
-                    statusAlert.innerText = 'تم تسجيل الدخول بنجاح! جاري التوجيه للوحة التحكم...';
+                    statusAlert.innerText = 'تم تسجيل الدخول بنجاح! جاري حفظ البيانات والتوجيه...';
                     
-                    // حفظ الإيميل الحالي في متغير منفصل وخاص به لجلبه عند التحميل التالي
                     localStorage.setItem('lastEmail', email);
-                    // حفظ الكائن الكامل الخاص بالمستخدم
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
+                    // الخدعة: إعطاء إشارة للمتصفح إن الفورم سليمة ويلا ابعتها للـ action عشان يظهر إشعار الحفظ
                     setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 2000);
+                        isVerified = true;
+                        document.getElementById('loginForm').submit();
+                    }, 1000);
+                    
                 } else {
                     statusAlert.classList.remove('d-none');
                     statusAlert.style.cssText = "background-color: rgba(220, 53, 69, 0.2); color: #ff6b6b; border: 1px solid #ff6b6b;";
